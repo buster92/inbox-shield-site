@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inbox Shield — Check if your message will land in spam</title>
+  <meta name="description" content="Inbox Shield analyzes your message before you send it, detects spam triggers, and suggests a safer rewrite." />
+  <meta property="og:title" content="Inbox Shield — Check if your message will land in spam" />
+  <meta property="og:description" content="Analyze spam risk, detect wording triggers, and rewrite messages before sending." />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#0f172a" />
+  <style>
+    :root {
+      --bg: #081120;
+      --bg-soft: #0f172a;
+      --panel: rgba(15, 23, 42, 0.72);
+      --panel-border: rgba(148, 163, 184, 0.18);
+      --text: #e5eefb;
+      --muted: #9fb0ca;
+      --accent: #3b82f6;
+      --accent-2: #60a5fa;
+      --good: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --shadow: 0 20px 60px rgba(2, 6, 23, 0.45);
+      --radius: 22px;
+      --max: 1120px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(96, 165, 250, 0.12), transparent 26%),
+        linear-gradient(180deg, #081120 0%, #0a1222 50%, #0d1426 100%);
+      color: var(--text);
+      line-height: 1.55;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+
+    .container {
+      width: min(var(--max), calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(16px);
+      background: rgba(8, 17, 32, 0.76);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .shield {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #2563eb, #60a5fa);
+      box-shadow: 0 12px 28px rgba(37, 99, 235, 0.35);
+      font-size: 20px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: 1px solid transparent;
+      border-radius: 14px;
+      padding: 13px 18px;
+      font-weight: 600;
+      transition: 0.22s ease;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      color: white;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      box-shadow: 0 14px 32px rgba(59, 130, 246, 0.32);
+    }
+
+    .btn-primary:hover { transform: translateY(-1px); }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.03);
+      color: var(--text);
+      border-color: rgba(148, 163, 184, 0.18);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.05);
+      transform: translateY(-1px);
+    }
+
+    .hero {
+      padding: 72px 0 42px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 30px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid rgba(96, 165, 250, 0.18);
+      background: rgba(59, 130, 246, 0.08);
+      color: #bfdbfe;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      font-size: clamp(2.3rem, 5vw, 4.4rem);
+      line-height: 1.02;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 650px;
+      color: var(--muted);
+      font-size: 1.07rem;
+    }
+
+    .hero-actions {
+      margin-top: 26px;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .mini-proof {
+      margin-top: 18px;
+      color: #b7c7de;
+      font-size: 0.95rem;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .score-demo {
+      padding: 22px;
+      overflow: hidden;
+    }
+
+    .score-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .pill.bad { background: rgba(239, 68, 68, 0.12); color: #fca5a5; }
+    .pill.good { background: rgba(34, 197, 94, 0.12); color: #86efac; }
+
+    .score-box {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .score-panel {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .score-label {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .score-number {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .bad-num { color: #f87171; }
+    .good-num { color: #4ade80; }
+
+    .arrow {
+      display: grid;
+      place-items: center;
+      color: #93c5fd;
+      font-size: 1.9rem;
+      font-weight: 700;
+    }
+
+    .triggers {
+      margin-top: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .trigger {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      color: #d6e2f3;
+      font-size: 0.92rem;
+    }
+
+    section {
+      padding: 32px 0;
+    }
+
+    .section-head {
+      max-width: 700px;
+      margin-bottom: 22px;
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      font-size: clamp(1.8rem, 3vw, 2.7rem);
+      letter-spacing: -0.03em;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .feature-card {
+      padding: 22px;
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 15px;
+      display: grid;
+      place-items: center;
+      background: rgba(59, 130, 246, 0.12);
+      color: #bfdbfe;
+      font-size: 1.2rem;
+      margin-bottom: 14px;
+    }
+
+    .feature-card h3 {
+      margin: 0 0 8px;
+      font-size: 1.1rem;
+    }
+
+    .feature-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.97rem;
+    }
+
+    .how {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .step {
+      padding: 22px;
+      position: relative;
+    }
+
+    .step-num {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(59,130,246,0.18), rgba(96,165,250,0.1));
+      border: 1px solid rgba(96, 165, 250, 0.16);
+      color: #dbeafe;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .step h3 {
+      margin: 0 0 8px;
+      font-size: 1.08rem;
+    }
+
+    .step p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .pricing-wrap {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .pricing-copy,
+    .pricing-card {
+      padding: 24px;
+    }
+
+    .pricing-card {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(96, 165, 250, 0.22);
+      background: linear-gradient(180deg, rgba(59,130,246,0.12), rgba(15,23,42,0.76));
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      background: rgba(96, 165, 250, 0.14);
+      color: #bfdbfe;
+      margin-bottom: 14px;
+    }
+
+    .price {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .price strong {
+      font-size: 3rem;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    .price span { color: var(--muted); }
+
+    .price-list {
+      display: grid;
+      gap: 12px;
+      margin: 18px 0 22px;
+    }
+
+    .price-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      color: #dce8f8;
+    }
+
+    .price-item b {
+      color: #93c5fd;
+    }
+
+    .faq {
+      display: grid;
+      gap: 14px;
+    }
+
+    details {
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: rgba(255,255,255,0.03);
+      padding: 18px 20px;
+    }
+
+    summary {
+      cursor: pointer;
+      list-style: none;
+      font-weight: 600;
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    details p {
+      margin: 12px 0 0;
+      color: var(--muted);
+    }
+
+    .cta {
+      padding: 26px;
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+      flex-wrap: wrap;
+      background: linear-gradient(180deg, rgba(59,130,246,0.14), rgba(15,23,42,0.78));
+    }
+
+    .cta h3 {
+      margin: 0 0 8px;
+      font-size: 1.35rem;
+    }
+
+    .cta p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 680px;
+    }
+
+    footer {
+      padding: 34px 0 48px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      border-top: 1px solid rgba(148, 163, 184, 0.1);
+      padding-top: 22px;
+    }
+
+    .muted-link:hover { color: var(--text); }
+
+    @media (max-width: 960px) {
+      .hero-grid,
+      .grid-3,
+      .how,
+      .pricing-wrap { grid-template-columns: 1fr; }
+      .score-box { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); }
+      .nav-links a:not(.btn) { display: none; }
+    }
+
+    @media (max-width: 640px) {
+      .container { width: min(var(--max), calc(100% - 22px)); }
+      .hero { padding-top: 44px; }
+      .nav-inner { padding: 12px 0; }
+      .shield { width: 36px; height: 36px; border-radius: 12px; }
+      .cta { padding: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="#top" aria-label="Inbox Shield home">
+        <div class="shield">🛡️</div>
+        <div>Inbox Shield</div>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#pricing">Shield</a>
+        <a href="#faq">FAQ</a>
+        <a class="btn btn-primary" href="#get-access">Join early access</a>
+      </div>
+    </div>
+  </nav>
+
+  <main id="top">
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <div class="eyebrow">Chrome extension beta • Message-level spam risk detection</div>
+          <h1>Check if your message will land in spam before you send it.</h1>
+          <p>
+            Inbox Shield analyzes wording patterns that trigger spam filters, shows a clear risk score, highlights likely issues, and suggests a safer rewrite in seconds.
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#get-access">Join early access</a>
+            <a class="btn btn-secondary" href="#how-it-works">See how it works</a>
+          </div>
+          <div class="mini-proof">Built for founders, marketers, sales teams, recruiters, and anyone who wants cleaner deliverability before hitting send.</div>
+        </div>
+
+        <div class="card score-demo" aria-label="Spam score before and after example">
+          <div class="score-top">
+            <div>
+              <div style="font-weight:700; font-size:1.08rem;">Visible improvement in one glance</div>
+              <div style="color:var(--muted); font-size:0.95rem; margin-top:4px;">The value is the before → after shift.</div>
+            </div>
+            <div class="pill bad">Before: High risk</div>
+          </div>
+
+          <div class="score-box">
+            <div class="score-panel">
+              <div class="score-label">Original message</div>
+              <div class="score-number bad-num">67</div>
+              <div style="color:#fca5a5; font-weight:700; margin-top:4px;">HIGH</div>
+            </div>
+            <div class="arrow">→</div>
+            <div class="score-panel">
+              <div class="score-label">Rewritten message</div>
+              <div class="score-number good-num">21</div>
+              <div style="color:#86efac; font-weight:700; margin-top:4px;">LOW</div>
+            </div>
+          </div>
+
+          <div class="triggers">
+            <div class="trigger">Urgency language</div>
+            <div class="trigger">Promotional wording</div>
+            <div class="trigger">Aggressive CTA pressure</div>
+            <div class="trigger">High spam density</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features">
+      <div class="container">
+        <div class="section-head">
+          <h2>What users see immediately</h2>
+          <p>The product works best when value is obvious in seconds: a clear score, specific triggers, and a measurable rewrite improvement.</p>
+        </div>
+        <div class="grid-3">
+          <div class="card feature-card">
+            <div class="feature-icon">📉</div>
+            <h3>Spam risk score</h3>
+            <p>See a simple 0–100 score before sending so you can catch risky wording early instead of guessing.</p>
+          </div>
+          <div class="card feature-card">
+            <div class="feature-icon">🔎</div>
+            <h3>Trigger detection</h3>
+            <p>Understand which message patterns may push your copy toward spam-like signals.</p>
+          </div>
+          <div class="card feature-card">
+            <div class="feature-icon">✍️</div>
+            <h3>Safer rewrite</h3>
+            <p>Generate a cleaner version and compare before → after impact directly in the extension.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="how-it-works">
+      <div class="container">
+        <div class="section-head">
+          <h2>How it works</h2>
+          <p>Simple flow, low friction, useful feedback. The goal is to make checking a message fast enough to become part of the writing workflow.</p>
+        </div>
+        <div class="how">
+          <div class="card step">
+            <div class="step-num">1</div>
+            <h3>Paste your message</h3>
+            <p>Drop in an email, outreach message, follow-up, or draft you want to review before sending.</p>
+          </div>
+          <div class="card step">
+            <div class="step-num">2</div>
+            <h3>Analyze spam risk</h3>
+            <p>Inbox Shield scores the message, flags likely trigger patterns, and shows the current risk level.</p>
+          </div>
+          <div class="card step">
+            <div class="step-num">3</div>
+            <h3>Rewrite and compare</h3>
+            <p>See the improved version and check whether the score meaningfully drops before you hit send.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pricing">
+      <div class="container pricing-wrap">
+        <div class="card pricing-copy">
+          <div class="section-head" style="margin-bottom:0;">
+            <h2>Simple pricing for MVP launch</h2>
+            <p>Keep the first version easy to understand: a free plan to test the value, and Shield for serious use.</p>
+          </div>
+          <div style="margin-top:18px; color:var(--muted);">
+            <p style="margin:0 0 12px;">This page is already aligned with your current project decision:</p>
+            <ul style="margin:0; padding-left:18px; display:grid; gap:10px; color:#d8e5f5;">
+              <li><b>Explorer</b>: free access for early testing and light usage.</li>
+              <li><b>Shield</b>: paid plan for users who want to keep checking messages without worrying about quota pressure.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card pricing-card">
+          <div class="tag">Current paid plan</div>
+          <h3 style="margin:0 0 10px; font-size:1.4rem;">Shield</h3>
+          <div class="price">
+            <strong>$19</strong>
+            <span>/ month</span>
+          </div>
+          <div style="color:var(--muted);">For users who actively write outbound messages and want repeat checks, rewrites, and visible improvement.</div>
+          <div class="price-list">
+            <div class="price-item"><b>•</b><span>Higher usage quota for frequent analysis</span></div>
+            <div class="price-item"><b>•</b><span>Rewrite flow with measurable before → after shift</span></div>
+            <div class="price-item"><b>•</b><span>Cleaner workflow for people sending important messages regularly</span></div>
+            <div class="price-item"><b>•</b><span>Better fit for outreach, follow-ups, and repeated copy testing</span></div>
+          </div>
+          <a class="btn btn-primary" href="#get-access">Request beta access</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="container">
+        <div class="section-head">
+          <h2>Frequently asked questions</h2>
+          <p>Keep this short at launch. Most visitors only need enough clarity to decide whether the tool is worth trying.</p>
+        </div>
+        <div class="faq">
+          <details open>
+            <summary>Who is Inbox Shield for?</summary>
+            <p>Founders, marketers, recruiters, sales teams, freelancers, and anyone sending messages where wording quality and deliverability matter.</p>
+          </details>
+          <details>
+            <summary>Does Inbox Shield guarantee inbox placement?</summary>
+            <p>No. Deliverability depends on multiple factors. Inbox Shield focuses on the message itself: wording patterns, spam-like structure, and rewrite improvement before sending.</p>
+          </details>
+          <details>
+            <summary>How fast is the analysis?</summary>
+            <p>The extension is designed to give useful feedback in seconds so it can fit naturally into the writing process.</p>
+          </details>
+          <details>
+            <summary>Can I join as an early tester?</summary>
+            <p>Yes. Replace the beta button link below with your real install link, waitlist form, or email collection endpoint.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section id="get-access">
+      <div class="container">
+        <div class="card cta">
+          <div>
+            <h3>Join the Inbox Shield beta</h3>
+            <p>Test the Chrome extension, analyze your message before sending, and see whether the spam score improves after rewrite.</p>
+          </div>
+          <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <a class="btn btn-primary" href="mailto:your@email.com?subject=Inbox%20Shield%20beta%20access">Request access</a>
+            <a class="btn btn-secondary" href="https://chrome.google.com/webstore" target="_blank" rel="noreferrer">Chrome Web Store link</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container footer-row">
+      <div>© <span id="year"></span> Inbox Shield. All rights reserved.</div>
+      <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        <a class="muted-link" href="#faq">FAQ</a>
+        <a class="muted-link" href="mailto:your@email.com">Contact</a>
+        <a class="muted-link" href="#top">Back to top</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
